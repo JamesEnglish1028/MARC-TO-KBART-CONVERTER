@@ -70,3 +70,29 @@ This app converts MARC bibliographic files (from URL or upload) into NISO-compli
 > **Note:** All browser-based MARC parsing code and dependencies have been removed. All MARC21/MARCXML parsing is now handled by the backend for reliability and scalability.
 
 ---
+
+## Bug fix: Palace CM / AllOrigins binary payload handling (2025-10-16)
+
+We discovered an edge case where the `AllOrigins` proxy sometimes returns MARC files as a `data:` URI or raw base64 string inside the JSON `contents` field. The frontend used to treat that string literally, which resulted in the backend receiving the `data:...` text instead of the raw MARC binary bytes. This caused intermittent 500 errors on the backend when parsing certain files.
+
+Fix implemented:
+- The frontend now detects `data:` URIs and raw base64 payloads returned by proxies and decodes them into raw bytes (Uint8Array).
+- All downloaded file data (Blob or Uint8Array) is normalized to a Blob and wrapped in a `File` with MIME type `application/marc` before uploading to the backend.
+- Additional hex-byte debug logging was added to help verify end-to-end byte equality between browser uploads and `curl` uploads. These logs print the first 32 bytes in hex for comparison.
+
+How to test manually:
+1. Use the Palace CM flow in the app to fetch a MARC file link.
+2. Observe browser console logs for two lines:
+   - `Debug: downloaded file first bytes (hex): ...` (from `InputArea.tsx`)
+   - `Debug: upload file first bytes (hex): ...` (from `services/marcService.ts`)
+3. Run a curl upload of the same file locally and inspect the first 32 bytes:
+
+```sh
+xxd -l 32 -ps OAPENSample.mrc
+curl -F "file=@OAPENSample.mrc" "${VITE_API_URL}/api/convert?format=json" -H "Authorization: Bearer <token>"
+```
+
+If the hex bytes match and the backend still fails, investigate server-side parsing. If they don't match, the frontend may still be converting the payload incorrectly (unlikely after this fix).
+
+Note: Remove or disable verbose debug logging before shipping to production.
+

@@ -53,7 +53,7 @@ const KbartTable: React.FC<KbartTableProps> = ({ data }) => {
             <ClipboardIcon className="w-5 h-5" />
             {copyStatus === 'idle' ? 'Copy TSV' : 'Copied!'}
           </button>
-          <button onClick={handleDownload} className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white font-semibold rounded-lg hover:bg-cyan-700 transition-colors duration-200">
+          <button onClick={handleDownload} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors duration-200">
             <DownloadIcon className="w-5 h-5" />
             Download .tsv
           </button>

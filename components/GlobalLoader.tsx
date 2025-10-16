@@ -14,8 +14,8 @@ const GlobalLoader: React.FC<GlobalLoaderProps> = ({ isLoading }) => {
       aria-busy={isLoading}
       aria-valuetext="Loading"
     >
-      <div className="relative w-full h-full bg-cyan-500/20 overflow-hidden">
-        <div className="absolute top-0 left-0 h-full w-full bg-cyan-500 animate-indeterminate-progress"></div>
+      <div className="relative w-full h-full bg-blue-500/20 overflow-hidden">
+        <div className="absolute top-0 left-0 h-full w-full bg-blue-500 animate-indeterminate-progress"></div>
       </div>
     </div>
   );

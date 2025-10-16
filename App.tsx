@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { KbartRow, Status } from './types';
 import { convertUrlToKbart, convertFileToKbart } from './services/marcService';
 import StatusDisplay from './components/StatusDisplay';
@@ -7,10 +7,30 @@ import InputArea from './components/InputArea';
 import GlobalLoader from './components/GlobalLoader';
 import ErrorBoundary from './components/ErrorBoundary';
 
+
+const API_URL = (typeof import.meta.env !== 'undefined' && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL : (process.env.VITE_API_URL || '');
+
 const App: React.FC = () => {
   const [kbartData, setKbartData] = useState<KbartRow[]>([]);
   const [status, setStatus] = useState<Status | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
+  // Health check on app load
+  useEffect(() => {
+    const checkApi = async () => {
+      try {
+        const resp = await fetch(`${API_URL}/api/convert`, { method: 'HEAD' });
+        if (resp.ok || resp.status === 405 || resp.status === 404) {
+          setApiAvailable(true);
+        } else {
+          setApiAvailable(false);
+        }
+      } catch (e) {
+        setApiAvailable(false);
+      }
+    };
+    checkApi();
+  }, []);
 
   const handleUrlConvert = async (url: string) => {
     setIsLoading(true);
@@ -48,12 +68,18 @@ const App: React.FC = () => {
       <main className="w-full max-w-5xl mx-auto">
         <header className="text-center mb-8">
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-2">
-            MARC to <span className="text-cyan-400">KBART</span> Converter
+            MARC to <span className="text-blue-400">KBART</span> Converter
           </h1>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">
             Convert a MARC file into a KBART-formatted table by providing a URL or uploading the file directly.
           </p>
         </header>
+
+        {apiAvailable === false && (
+          <div className="mb-4 p-4 bg-red-900 text-red-200 rounded-lg border border-red-700 text-center">
+            <strong>Backend API is not available.</strong> Please try again later.
+          </div>
+        )}
 
         <ErrorBoundary>
           <section className="w-full bg-gray-800/50 border border-gray-700 rounded-xl shadow-2xl p-6 sm:p-8">
@@ -61,8 +87,9 @@ const App: React.FC = () => {
               onUrlConvert={handleUrlConvert}
               onFileConvert={handleFileConvert}
               isLoading={isLoading}
+              disabled={apiAvailable === false}
             />
-            {(isLoading || status) && <StatusDisplay status={status} />}
+            {(isLoading || (status && apiAvailable !== false)) && <StatusDisplay status={status} />}
           </section>
 
           <section className="w-full">

@@ -1,0 +1,5 @@
+{
+  "name": "MARC to KBART Converter",
+  "description": "An online tool to fetch a MARC file from a URL, parse its records, and convert the metadata into a NISO-compliant KBART file. You can then view, copy, or download the result.",
+  "requestFramePermissions": []
+}

@@ -18,7 +18,7 @@ export const convertFileToKbart = async (file: File, setStatus: (status: Status)
         headers['Authorization'] = `Bearer ${API_TOKEN}`;
     }
     try {
-        response = await fetch(`${API_URL}/api/convert`, {
+    response = await fetch(`${API_URL}/api/convert?format=json`, {
             method: 'POST',
             body: formData,
             headers,
@@ -39,7 +39,8 @@ export const convertFileToKbart = async (file: File, setStatus: (status: Status)
         throw new Error('Unexpected backend response format.');
     }
     setStatus({ message: `Successfully converted ${json.length} records.`, type: 'success' });
-    return json;
+    // Pass through all fields from backend response
+    return json.map((rec: any) => ({ ...rec }));
 };
 
 

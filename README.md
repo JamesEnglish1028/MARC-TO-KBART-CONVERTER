@@ -55,6 +55,16 @@ This app converts MARC bibliographic files (from URL or upload) into NISO-compli
 
 ---
 
+## API Integration Notes (as of v1.1.0)
+
+- The app now supports all fields returned by the backend API at `/api/convert?format=json`.
+- The table and TSV export will include all columns present in the backend JSON response, including new or custom fields.
+- The backend response fields include (but are not limited to):
+  - title_id, publication_title, title_url, first_author, online_identifier, publisher_name, publication_type, date_monograph_published_online, first_editor, access_type, source_id, source_id_type
+- The frontend automatically adapts to new fields added by the backend.
+
+---
+
 ## Previous browser-based MARC parsing
 
 > **Note:** All browser-based MARC parsing code and dependencies have been removed. All MARC21/MARCXML parsing is now handled by the backend for reliability and scalability.

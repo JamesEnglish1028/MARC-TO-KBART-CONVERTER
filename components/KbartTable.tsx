@@ -14,7 +14,7 @@ const KbartTable: React.FC<KbartTableProps> = ({ data }) => {
   const generateTsv = useCallback(() => {
     const headers = APP_KBART_HEADERS.join('\t');
     const rows = data.map(row => 
-      APP_KBART_HEADERS.map(header => `"${row[header].replace(/"/g, '""')}"`).join('\t')
+      APP_KBART_HEADERS.map(header => `"${(row[header] ?? '').replace(/"/g, '""')}"`).join('\t')
     );
     return [headers, ...rows].join('\n');
   }, [data]);
@@ -75,7 +75,7 @@ const KbartTable: React.FC<KbartTableProps> = ({ data }) => {
               <tr key={index} className="border-b border-gray-700 hover:bg-gray-700/50">
                 {APP_KBART_HEADERS.map(header => (
                   <td key={`${header}-${index}`} className="px-4 py-3 font-mono text-xs">
-                    {row[header]}
+                    {row[header] ?? ''}
                   </td>
                 ))}
               </tr>

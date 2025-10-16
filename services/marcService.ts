@@ -5,6 +5,7 @@ import { KbartRow, Status } from '../types';
 
 // Get API URL from environment variable or fallback to relative path
 const API_URL = import.meta.env.VITE_API_URL || '';
+const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
 
 // POST a file to the Flask backend for MARC parsing
 export const convertFileToKbart = async (file: File, setStatus: (status: Status) => void): Promise<KbartRow[]> => {
@@ -12,10 +13,15 @@ export const convertFileToKbart = async (file: File, setStatus: (status: Status)
     const formData = new FormData();
     formData.append('file', file);
     let response: Response;
+    const headers: Record<string, string> = {};
+    if (API_TOKEN) {
+        headers['Authorization'] = `Bearer ${API_TOKEN}`;
+    }
     try {
         response = await fetch(`${API_URL}/api/convert`, {
             method: 'POST',
             body: formData,
+            headers,
         });
     } catch (fetchError) {
         throw new Error('Network error uploading file to backend.');

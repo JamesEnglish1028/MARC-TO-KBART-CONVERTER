@@ -6,6 +6,202 @@
   <title>MARC to KBART Converter</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    /* Outer Uppy Dashboard container: center content */
+    .uppy-Dashboard-inner {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 100%;
+      min-height: 100%;
+    }
+    /* Uppy Dashboard drop area: make more prominent */
+    .uppy-Dashboard-AddFiles {
+      border: none !important;
+      background: #1e293b !important; /* slate-800 */
+      border-radius: 1rem !important;
+      min-height: 110px;
+      max-width: 600px;
+      width: 100%;
+      padding: 2.5rem 2.5rem 2rem 2.5rem;
+      box-shadow: 0 2px 16px 0 #164e6333;
+      margin-bottom: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .uppy-DashboardTab-btn {
+  flex-direction: row !important;
+  gap: 0.5rem !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0.75rem 1.25rem !important;
+  border-radius: 0.75rem !important;
+  background: #1e293b !important;
+  color: #eef5f6 !important;
+  font-weight: 500;
+  font-size: 1rem;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s, border-color 0.2s;
+  box-shadow: 0 2px 8px 0 #164e6333;
+  border: 2px solid #38bdf8 !important; /* cyan-300 border */
+  margin: 0 0.5rem !important;
+}
+
+.uppy-DashboardTab-btn:hover {
+  background: #164e63 !important;
+  color: #a5f3fc !important;
+  border-color: #06b6d4 !important; /* cyan-500 */
+}
+
+/* Remove drop area hover/focus highlight */
+.uppy-Dashboard-AddFiles:hover,
+.uppy-Dashboard-AddFiles:focus {
+  /* No hover/focus highlight for drop area */
+}
+    .uppy-Dashboard-inner {
+      max-width: 640px !important;
+      margin: 0 auto !important;
+    }
+    .uppy-Dashboard-AddFiles-title {
+      font-size: 1.25rem !important;
+      font-weight: 500 !important;
+      color: lab(96.94% -1.32 -0.47) !important; /* cyan-200 */
+      margin-bottom: 0.5rem !important;
+      letter-spacing: 0.01em;
+      text-align: center;
+    }
+    .uppy-Dashboard-AddFiles-info {
+      font-size: 1rem !important;
+      font-weight: 400 !important;
+      color: #f2f4f5 !important; /* cyan-300 */
+      margin-bottom: 1.25rem !important;
+      text-align: center;
+      line-height: 1.5;
+    }
+    /* Uppy Dashboard sidebar buttons: horizontal layout, spacing, hover/active feedback */
+    .uppy-DashboardTabs {
+      display: flex !important;
+      flex-direction: row !important;
+      gap: 1.25rem !important;
+      justify-content: center !important;
+      align-items: center !important;
+      margin-bottom: 1.5rem !important;
+      width: 100%;
+    }
+    .uppy-DashboardTab {
+      flex: 1 1 0;
+      min-width: 120px;
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 0.75rem 1.25rem !important;
+      border-radius: 0.75rem !important;
+      background: #1e293b !important;
+      color: #22d3ee !important;
+      font-weight: 500;
+      font-size: 1rem;
+      transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 8px 0 #164e6333;
+      border: none;
+      margin: 0 0.5rem !important;
+      gap: 0.5rem;
+    }
+    .uppy-DashboardTab-btn:hover {
+      background: #164e63 !important;
+      color: #a5f3fc !important;
+    }
+    .uppy-DashboardTab-btn.uppy-DashboardTab-btn--active {
+      background: #164e63 !important;
+      color: #a5f3fc !important;
+      box-shadow: 0 0 0 2px #22d3ee;
+    }
+    .uppy-DashboardTab-btn svg {
+      color: #22d3ee !important;
+      width: 1.5rem !important;
+      height: 1.5rem !important;
+      stroke-width: 2.2;
+      margin-right: 0.5rem;
+    }
+    .uppy-DashboardTab-name {
+      margin: 0 !important;
+      padding: 0 !important;
+      font-size: 1rem !important;
+      font-weight: 500 !important;
+      color: inherit !important;
+      display: inline-block !important;
+      vertical-align: middle;
+    }
+    /* Instruction text consistency */
+    .uppy-Dashboard-AddFiles-title {
+      font-size: 1.1rem !important;
+      font-weight: 500 !important;
+      color: oklch(98.658% 0.00216 199.99) !important; /* cyan-200 */
+      margin-bottom: 1.25rem !important;
+      letter-spacing: 0.01em;
+      text-align: center;
+      font-family: inherit !important;
+      width: 100%;
+      display: block;
+    }
+    .uppy-DashboardTabs {
+      flex-direction: column !important;
+      gap: 1.25rem !important;
+      justify-content: flex-start !important;
+      align-items: center !important;
+      margin-bottom: 1.5rem !important;
+      width: 100%;
+    }
+    .uppy-DashboardTab,
+    .uppy-DashboardTab-btn {
+      width: 100% !important;
+      max-width: 320px;
+      margin: 0 auto !important;
+      margin-bottom: 0.5rem !important;
+      box-shadow: 0 2px 8px 0 #164e6333;
+      border-radius: 0.75rem !important;
+      padding: 0.85rem 1.25rem !important;
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 1rem !important;
+      font-weight: 500 !important;
+      gap: 0.5rem !important;
+    }
+    .uppy-DashboardTab-btn:last-child {
+      margin-bottom: 0 !important;
+    }
+    .uppy-DashboardTab-btn svg {
+      color: #22d3ee !important;
+      width: 1.5rem !important;
+      height: 1.5rem !important;
+      stroke-width: 2.2;
+      margin-right: 0.5rem;
+    }
+    .uppy-DashboardTab-name {
+      margin: 0 !important;
+      padding: 0 !important;
+      font-size: 1rem !important;
+      font-weight: 500 !important;
+      color: inherit !important;
+      display: inline-block !important;
+      vertical-align: middle;
+    }
+    .uppy-Dashboard-AddFiles-info {
+      font-size: 1rem !important;
+      font-weight: 400 !important;
+      color: #38bdf8 !important; /* cyan-300 */
+      margin-top: 1.5rem !important;
+      margin-bottom: 0.5rem !important;
+      text-align: center;
+      line-height: 1.5;
+      font-family: inherit !important;
+      width: 100%;
+      display: block;
+    }
     /* For GlobalLoader component */
     @keyframes indeterminate-progress {
       0% {
@@ -17,6 +213,22 @@
     }
     .animate-indeterminate-progress {
       animation: indeterminate-progress 1.5s infinite ease-in-out;
+    }
+    /* Uppy Dashboard sidebar icons (My Device, URL) Tailwind style override */
+    .uppy-DashboardTab-btn svg {
+      color: #22d3ee !important; /* Tailwind cyan-400 */
+      width: 1.5rem !important;
+      height: 1.5rem !important;
+      stroke-width: 2.2;
+    }
+    .uppy-DashboardTab-btn {
+      border-radius: 0.5rem !important; /* rounded-lg */
+      background: #1e293b !important; /* bg-slate-800 */
+      transition: background 0.2s;
+    }
+    .uppy-DashboardTab-btn.uppy-DashboardTab-btn--active {
+      background: #164e63 !important; /* bg-cyan-900 */
+      box-shadow: 0 0 0 2px #22d3ee;
     }
   </style>
   <link rel="stylesheet" href="/uppy.min.css">

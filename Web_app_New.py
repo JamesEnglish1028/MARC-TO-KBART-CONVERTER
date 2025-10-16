@@ -4,6 +4,26 @@ def api_convert():
         return jsonify({'error': 'No file uploaded'}), 400
     file = request.files['file']
     try:
+        # Server-side binary debug: read first 32 bytes and log them as hex for end-to-end verification
+        try:
+            first32 = file.read(32)
+            if isinstance(first32, str):
+                # In some environments read may return str; convert to bytes
+                first32 = first32.encode('utf-8')
+            hex_preview = ' '.join(f"{b:02x}" for b in first32)
+            app.logger.info('Server: received file=%s content_type=%s first32=%s', getattr(file, 'filename', '<unknown>'), getattr(file, 'content_type', '<unknown>'), hex_preview)
+        except Exception as e:
+            app.logger.warning('Server: could not read first bytes for debug: %s', e)
+        finally:
+            # Rewind file pointer so MARCReader can read from the beginning
+            try:
+                file.seek(0)
+            except Exception:
+                try:
+                    file.stream.seek(0)
+                except Exception:
+                    pass
+
         reader = MARCReader(file)
         records = [rec.as_dict() for rec in reader]
         return jsonify(records)

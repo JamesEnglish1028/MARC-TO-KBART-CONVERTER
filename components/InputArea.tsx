@@ -170,6 +170,9 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
     };
   }, [onFileConvert]);
 
+  const DEBUG = (import.meta.env.VITE_UPLOAD_DEBUG === 'true') || (process.env.VITE_UPLOAD_DEBUG === 'true');
+  const FORCE_MIME = (typeof import.meta.env.VITE_FORCE_MIME !== 'undefined' ? import.meta.env.VITE_FORCE_MIME : process.env.VITE_FORCE_MIME) !== 'false';
+
   // Handle selecting a MARC file link: fetch and convert
   const handleMarcFileSelect = async (href: string) => {
     setMarcFileError(null);
@@ -260,23 +263,26 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
         // Copy into a new ArrayBuffer to avoid SharedArrayBuffer/Detached issues
         const copied = new Uint8Array(fileData.length);
         copied.set(fileData);
-        blobToUse = new Blob([copied.buffer], { type: 'application/marc' });
+        blobToUse = new Blob([copied.buffer], { type: FORCE_MIME ? 'application/marc' : 'application/octet-stream' });
       } else {
         // Fallback: treat as text
-        blobToUse = new Blob([fileData as any], { type: 'application/marc' });
+        blobToUse = new Blob([fileData as any], { type: FORCE_MIME ? 'application/marc' : 'application/octet-stream' });
       }
 
-      // Create File forcing application/marc MIME type
-      const file = new File([blobToUse], filename, { type: 'application/marc' });
+      // Create File, honoring FORCE_MIME flag
+      const mimeToUse = FORCE_MIME ? 'application/marc' : (blobToUse.type || 'application/octet-stream');
+      const file = new File([blobToUse], filename, { type: mimeToUse });
 
       // Binary debug: log first 32 bytes as hex for comparison with backend
-      try {
-        const slice = await blobToUse.slice(0, 32).arrayBuffer();
-        const view = new Uint8Array(slice);
-        const hex = Array.from(view).map(b => b.toString(16).padStart(2, '0')).join(' ');
-        console.log('Debug: downloaded file first bytes (hex):', hex);
-      } catch (e) {
-        console.warn('Could not read blob slice for debug.', e);
+      if (DEBUG) {
+        try {
+          const slice = await blobToUse.slice(0, 32).arrayBuffer();
+          const view = new Uint8Array(slice);
+          const hex = Array.from(view).map(b => b.toString(16).padStart(2, '0')).join(' ');
+          console.log('Debug: downloaded file first bytes (hex):', hex);
+        } catch (e) {
+          console.warn('Could not read blob slice for debug.', e);
+        }
       }
 
       onFileConvert(file);

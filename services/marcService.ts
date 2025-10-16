@@ -3,15 +3,17 @@
 
 import { KbartRow, Status } from '../types';
 
-// Get API URL from environment variable or fallback to relative path
-const API_URL = import.meta.env.VITE_API_URL || '';
-const API_TOKEN = import.meta.env.VITE_API_TOKEN || '';
+// Environment flags (Vite) with process.env fallback for tests
+const API_URL = import.meta.env.VITE_API_URL || process.env.VITE_API_URL || '';
+const API_TOKEN = import.meta.env.VITE_API_TOKEN || process.env.VITE_API_TOKEN || '';
+const DEBUG = (import.meta.env.VITE_UPLOAD_DEBUG === 'true') || (process.env.VITE_UPLOAD_DEBUG === 'true');
+const FORCE_MIME = (typeof import.meta.env.VITE_FORCE_MIME !== 'undefined' ? import.meta.env.VITE_FORCE_MIME : process.env.VITE_FORCE_MIME) !== 'false';
 
 // POST a file to the Flask backend for MARC parsing
 export const convertFileToKbart = async (file: File, setStatus: (status: Status) => void): Promise<KbartRow[]> => {
-    // Always force MIME type to application/marc for backend compatibility
-    const marcFile = new File([file], file.name, { type: 'application/marc' });
-    console.log('Debug: File upload attempt:', { name: marcFile.name, size: marcFile.size, type: marcFile.type });
+    const typeToUse = FORCE_MIME ? 'application/marc' : (file.type || 'application/octet-stream');
+    const marcFile = new File([file], file.name, { type: typeToUse });
+    if (DEBUG) console.log('Debug: File upload attempt:', { name: marcFile.name, size: marcFile.size, type: marcFile.type });
     if (marcFile.size === 0) {
         setStatus({ message: `Selected file \"${marcFile.name}\" is empty. Please choose a valid MARC file.`, type: 'error' });
         throw new Error('File is empty.');
@@ -19,23 +21,27 @@ export const convertFileToKbart = async (file: File, setStatus: (status: Status)
     setStatus({ message: `Uploading file: ${marcFile.name}...`, type: 'info' });
 
     // Binary debug: read and log first 32 bytes of the file to compare with backend
-    try {
-        const slice = await marcFile.slice(0, 32).arrayBuffer();
-        const view = new Uint8Array(slice);
-        const hex = Array.from(view).map(b => b.toString(16).padStart(2, '0')).join(' ');
-        console.log('Debug: upload file first bytes (hex):', hex);
-    } catch (e) {
-        console.warn('Could not read file slice for debug.', e);
+    if (DEBUG) {
+        try {
+            const slice = await marcFile.slice(0, 32).arrayBuffer();
+            const view = new Uint8Array(slice);
+            const hex = Array.from(view).map(b => b.toString(16).padStart(2, '0')).join(' ');
+            console.log('Debug: upload file first bytes (hex):', hex);
+        } catch (e) {
+            console.warn('Could not read file slice for debug.', e);
+        }
     }
 
     const formData = new FormData();
     formData.append('file', marcFile);
-    // Log FormData contents
-    for (const [key, value] of formData.entries()) {
-        if (value instanceof File) {
-            console.log(`FormData field: ${key}, File name: ${value.name}, size: ${value.size}, type: ${value.type}`);
-        } else {
-            console.log(`FormData field: ${key}, Value:`, value);
+    // Log FormData contents (debug only)
+    if (DEBUG) {
+        for (const [key, value] of formData.entries()) {
+            if (value instanceof File) {
+                console.log(`FormData field: ${key}, File name: ${value.name}, size: ${value.size}, type: ${value.type}`);
+            } else {
+                console.log(`FormData field: ${key}, Value:`, value);
+            }
         }
     }
     let response: Response;
@@ -44,15 +50,15 @@ export const convertFileToKbart = async (file: File, setStatus: (status: Status)
         headers['Authorization'] = `Bearer ${API_TOKEN}`;
     }
     try {
-        console.log('Sending request to:', `${API_URL}/api/convert?format=json`);
+        if (DEBUG) console.log('Sending request to:', `${API_URL}/api/convert?format=json`);
         response = await fetch(`${API_URL}/api/convert?format=json`, {
             method: 'POST',
             body: formData,
             headers,
         });
-        console.log('Response status:', response.status, response.statusText);
+        if (DEBUG) console.log('Response status:', response.status, response.statusText);
     } catch (fetchError) {
-        console.error('Network error uploading file to backend:', fetchError);
+        if (DEBUG) console.error('Network error uploading file to backend:', fetchError);
         throw new Error('Network error uploading file to backend.');
     }
     if (!response.ok) {
@@ -66,9 +72,9 @@ export const convertFileToKbart = async (file: File, setStatus: (status: Status)
     let json;
     try {
         json = await response.json();
-        console.log('Response JSON:', json);
+        if (DEBUG) console.log('Response JSON:', json);
     } catch (e) {
-        console.error('Failed to parse backend response as JSON.', e);
+        if (DEBUG) console.error('Failed to parse backend response as JSON.', e);
         throw new Error('Failed to parse backend response as JSON.');
     }
     if (!Array.isArray(json)) {

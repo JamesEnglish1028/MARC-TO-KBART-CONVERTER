@@ -10,6 +10,10 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.env.local
+*.zip
+RELEASE_DRAFT_*.md
+Web_app_New.py
 *.local
 
 # Editor directories and files

@@ -12,9 +12,60 @@ const API_URL = (typeof import.meta.env !== 'undefined' && import.meta.env.VITE_
 
 const App: React.FC = () => {
   const [kbartData, setKbartData] = useState<KbartRow[]>([]);
+  const [selectedLabel, setSelectedLabel] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState<Status | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
+  const [currentTab, setCurrentTab] = useState<'palace' | 'manual'>('palace');
+  type CacheEntry = { data: KbartRow[]; label?: string; status?: Status | null; ts?: string };
+  const [tabCache, setTabCache] = useState<Record<string, CacheEntry>>(() => {
+    // Try to load from localStorage
+    try {
+      const raw = localStorage.getItem('marc_kbart_tab_cache');
+      if (raw) {
+        return JSON.parse(raw) as Record<string, CacheEntry>;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return {
+      palace: { data: [], label: undefined, status: null, ts: undefined },
+      manual: { data: [], label: undefined, status: null, ts: undefined }
+    };
+  });
+
+  // Persist cache to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('marc_kbart_tab_cache', JSON.stringify(tabCache));
+    } catch (e) {
+      // ignore
+    }
+  }, [tabCache]);
+
+  const [showSettings, setShowSettings] = useState(false);
+  const [showClearCacheConfirm, setShowClearCacheConfirm] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
+
+  const clearCachedResults = () => {
+    // Clear local and persistent cache
+    const empty: Record<string, CacheEntry> = {
+      palace: { data: [], label: undefined, status: null, ts: undefined },
+      manual: { data: [], label: undefined, status: null, ts: undefined }
+    };
+    setTabCache(empty);
+    try {
+      localStorage.removeItem('marc_kbart_tab_cache');
+    } catch (e) {
+      // ignore
+    }
+    // Also clear current view
+    setKbartData([]);
+    setSelectedLabel(undefined);
+    setStatus(null);
+    setSettingsMessage('Cached results cleared');
+    setTimeout(() => setSettingsMessage(null), 2500);
+  };
   // Health check on app load
   useEffect(() => {
     const checkApi = async () => {
@@ -32,10 +83,11 @@ const App: React.FC = () => {
     checkApi();
   }, []);
 
-  const handleUrlConvert = async (url: string) => {
+  const handleUrlConvert = async (url: string, label?: string) => {
     setIsLoading(true);
     setKbartData([]);
     setStatus(null);
+    setSelectedLabel(label);
 
     try {
       const data = await convertUrlToKbart(url, setStatus);
@@ -75,6 +127,10 @@ const App: React.FC = () => {
           </p>
         </header>
 
+        <div className="w-full max-w-5xl mx-auto mb-4 flex justify-end">
+          <button className="px-3 py-1 rounded bg-gray-800 border border-gray-700 text-gray-200" onClick={() => setShowSettings(true)}>Settings</button>
+        </div>
+
         {apiAvailable === false && (
           <div className="mb-4 p-4 bg-red-900 text-red-200 rounded-lg border border-red-700 text-center">
             <strong>Backend API is not available.</strong> Please try again later.
@@ -85,17 +141,64 @@ const App: React.FC = () => {
           <section className="w-full bg-gray-800/50 border border-gray-700 rounded-xl shadow-2xl p-6 sm:p-8">
             <InputArea 
               onUrlConvert={handleUrlConvert}
-              onFileConvert={handleFileConvert}
+              onFileConvert={(file: File, label?: string) => { setSelectedLabel(label); handleFileConvert(file); }}
+              onActiveTabChange={(newTab) => {
+                // Save current tab results into cache (with timestamp) and restore any cached results for the new tab
+                setTabCache(prev => {
+                  const ts = new Date().toISOString();
+                  const updated = {
+                    ...prev,
+                    [currentTab]: { data: kbartData, label: selectedLabel, status, ts }
+                  };
+                  const entry = updated[newTab] || { data: [], label: undefined, status: null, ts: undefined };
+                  setKbartData(entry.data);
+                  setSelectedLabel(entry.label);
+                  setStatus(entry.status ?? null);
+                  setCurrentTab(newTab);
+                  return updated;
+                });
+              }}
               isLoading={isLoading}
               disabled={apiAvailable === false}
             />
             {(isLoading || (status && apiAvailable !== false)) && <StatusDisplay status={status} />}
           </section>
 
-          <section className="w-full">
-              <KbartTable data={kbartData} />
-          </section>
+      <section className="w-full">
+  <KbartTable data={kbartData} label={selectedLabel} currentTab={currentTab} ts={tabCache[currentTab]?.ts} />
+      </section>
         </ErrorBoundary>
+        {/* Settings modal */}
+        {showSettings && (
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setShowSettings(false)} />
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 z-10 w-full max-w-md">
+              <h4 className="text-lg font-semibold mb-2 text-white">Settings</h4>
+              <div className="mb-4">
+                <button className="px-3 py-2 bg-red-600 text-white rounded" onClick={() => setShowClearCacheConfirm(true)}>Clear cached results</button>
+                {settingsMessage && <div className="text-sm text-green-300 mt-2">{settingsMessage}</div>}
+              </div>
+              <div className="flex justify-end gap-2">
+                <button className="px-3 py-2 rounded bg-gray-700 text-gray-200" onClick={() => setShowSettings(false)}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Clear cache confirmation modal */}
+        {showClearCacheConfirm && (
+          <div className="fixed inset-0 flex items-center justify-center z-60">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setShowClearCacheConfirm(false)} />
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 z-10 w-full max-w-md">
+              <h4 className="text-lg font-semibold mb-2 text-white">Confirm clear cached results</h4>
+              <p className="text-sm text-gray-300 mb-4">This will permanently remove cached conversion results from local storage.</p>
+              <div className="flex justify-end gap-2">
+                <button className="px-3 py-2 rounded bg-gray-700 text-gray-200" onClick={() => setShowClearCacheConfirm(false)}>Cancel</button>
+                <button className="px-3 py-2 rounded bg-red-600 text-white" onClick={() => { clearCachedResults(); setShowClearCacheConfirm(false); setShowSettings(false); }}>Confirm</button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
       <footer className="w-full max-w-5xl mx-auto text-center mt-12 pb-4">
         <p className="text-sm text-gray-500">A static web application built with React, TypeScript, and Tailwind CSS.</p>

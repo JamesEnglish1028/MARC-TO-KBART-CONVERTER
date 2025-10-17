@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 // For HTML parsing
 // No external dependency: use DOMParser in browser
 import UppyCore from '@uppy/core';
@@ -10,8 +10,11 @@ import Url from '@uppy/url';
 // No core style import needed for Uppy v3+ (only dashboard)
 
 interface InputAreaProps {
-  onFileConvert: (file: File) => void;
+  onFileConvert: (file: File, label?: string) => void;
+  onUrlConvert?: (url: string) => void;
+  onActiveTabChange?: (tab: 'palace' | 'manual') => void;
   isLoading: boolean;
+  disabled?: boolean;
 }
 
 
@@ -24,7 +27,9 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 
-const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
+import UploadIcon from './icons/UploadIcon';
+
+const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading, onActiveTabChange }) => {
   const [fileError, setFileError] = useState<string | null>(null);
   const [uppy, setUppy] = useState<UppyCore | null>(null);
   // New state for MARC URL and results
@@ -35,8 +40,34 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
   // Fetch and parse MARC links from a given HTML page
   const [marcFileLoading, setMarcFileLoading] = useState<string | null>(null); // href of loading file
   const [marcFileError, setMarcFileError] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   // Tab state
   const [activeTab, setActiveTab] = useState<'palace' | 'manual'>('palace');
+  // AbortController ref for canceling in-flight fetches
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const performClear = () => {
+    // abort fetches
+    abortControllerRef.current?.abort();
+    // cancel Uppy uploads and remove files
+    try {
+      if (uppy) {
+        if (typeof (uppy as any).cancelAll === 'function') {
+          try { (uppy as any).cancelAll(); } catch (e) { /* ignore */ }
+        }
+        try { uppy.getFiles().forEach((f: any) => uppy.removeFile(f.id)); } catch (e) { /* ignore */ }
+      }
+    } catch (e) {
+      // ignore
+    }
+    setMarcUrl('');
+    setMarcLinks([]);
+    setMarcError(null);
+    setMarcFileLoading(null);
+    setMarcFileError(null);
+    setFileError(null);
+    setShowClearConfirm(false);
+  };
 
   const handleMarcUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +75,10 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
     setMarcLinks([]);
     if (!marcUrl) return;
     setMarcLoading(true);
+    // Abort previous requests
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     // Try multiple proxies in order
     const proxies = [
       {
@@ -61,7 +96,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
     let html = null;
     for (const proxy of proxies) {
       try {
-        const resp = await fetch(proxy.url(marcUrl));
+        const resp = await fetch(proxy.url(marcUrl), { signal: abortControllerRef.current?.signal });
         if (!resp.ok) throw new Error(`Proxy ${proxy.name} failed. Status: ${resp.status}`);
         let data;
         // AllOrigins returns JSON, corsproxy.io returns HTML string
@@ -73,6 +108,11 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
         html = proxy.extract(data);
         if (html) break;
       } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          // abort: stop early
+          setMarcLoading(false);
+          return;
+        }
         lastError = `${proxy.name}: ${err?.message || err}`;
       }
     }
@@ -160,7 +200,8 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
       if (result.successful && result.successful.length > 0) {
         const file = result.successful[0].data;
         setFileError(null);
-        onFileConvert(file);
+        // Pass the original filename as the label so UI and TSV use it
+        onFileConvert(file, (file as File).name || undefined);
       }
     });
 
@@ -174,7 +215,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
   const FORCE_MIME = (typeof import.meta.env.VITE_FORCE_MIME !== 'undefined' ? import.meta.env.VITE_FORCE_MIME : process.env.VITE_FORCE_MIME) !== 'false';
 
   // Handle selecting a MARC file link: fetch and convert
-  const handleMarcFileSelect = async (href: string) => {
+  const handleMarcFileSelect = async (href: string, label?: string) => {
     setMarcFileError(null);
     setMarcFileLoading(href);
     // Use same proxy logic as scraping
@@ -232,9 +273,14 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
     let lastError = '';
     let fileData: Blob | Uint8Array | null = null;
     let filename = href.split('/').pop() || 'marcfile.mrc';
+    // Abort previous file fetches
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     for (const proxy of proxies) {
       try {
-        const resp = await fetch(proxy.url(href));
+        const resp = await fetch(proxy.url(href), { signal: abortControllerRef.current?.signal });
         if (!resp.ok) throw new Error(`Proxy ${proxy.name} failed. Status: ${resp.status}`);
         const result = await proxy.extract(resp);
         if (result) {
@@ -242,6 +288,10 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
           break;
         }
       } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          setMarcFileLoading(null);
+          return;
+        }
         lastError = `${proxy.name}: ${err?.message || err}`;
       }
     }
@@ -285,7 +335,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
         }
       }
 
-      onFileConvert(file);
+      onFileConvert(file, label);
     } catch (err: any) {
       setMarcFileError('Could not process the downloaded MARC file.');
     } finally {
@@ -300,23 +350,47 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
         <nav className="flex rounded-xl overflow-hidden border border-gray-700 bg-gray-900">
           <button
             type="button"
-            className={`flex-1 px-6 py-3 font-semibold text-lg focus:outline-none transition-colors duration-150 ${activeTab === 'palace' ? 'bg-gray-800 text-blue-300 border-b-2 border-blue-500' : 'bg-gray-900 text-gray-300 hover:bg-gray-800'}`}
-            onClick={() => setActiveTab('palace')}
+            className={`flex-1 px-6 py-3 font-semibold text-lg flex items-center justify-center gap-3 focus:outline-none transition-colors duration-150 ${activeTab === 'palace' ? 'bg-gray-800 text-blue-300 border-b-2 border-blue-500' : 'bg-gray-900 text-gray-300 hover:bg-gray-800'}`}
+            onClick={() => {
+              // Switching to palace: clear manual upload transient state
+              setActiveTab('palace');
+              setFileError(null);
+              // cancel handled via Clear confirmation when requested
+              onActiveTabChange?.('palace');
+            }}
             // aria-selected removed; not valid for <button>
             aria-controls="tab-palace"
+            aria-label="Palace tab — select records from Palace CM"
+            title="Palace"
             tabIndex={0}
           >
-            Palace CM
+            <img src="/ThePalaceProject_Mark_RGB.png" alt="The Palace Project" className="w-7 h-7 object-contain" aria-hidden="true" title="Palace logo" />
+            <span className="ml-1">Palace</span>
           </button>
           <button
             type="button"
             className={`flex-1 px-6 py-3 font-semibold text-lg focus:outline-none transition-colors duration-150 ${activeTab === 'manual' ? 'bg-gray-800 text-blue-300 border-b-2 border-blue-500' : 'bg-gray-900 text-gray-300 hover:bg-gray-800'}`}
-            onClick={() => setActiveTab('manual')}
+            onClick={() => {
+              // Switching to manual: clear palace transient state but preserve the entered URL
+              // Also abort any in-flight palace fetches
+              abortControllerRef.current?.abort();
+              setActiveTab('manual');
+              setMarcLinks([]);
+              setMarcError(null);
+              setMarcFileLoading(null);
+              setMarcFileError(null);
+              onActiveTabChange?.('manual');
+            }}
             // aria-selected removed; not valid for <button>
             aria-controls="tab-manual"
+            aria-label="Manual or URL uploads tab — upload a MARC file or provide a URL"
+            title="Manual or URL uploads"
             tabIndex={0}
           >
-            Manual or URL uploads
+            <span className="flex items-center justify-center gap-3">
+              <UploadIcon className="w-7 h-7 text-current" aria-hidden="true" title="Upload" />
+              <span className="ml-1">Manual or URL uploads</span>
+            </span>
           </button>
         </nav>
       </div>
@@ -326,7 +400,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
         {activeTab === 'palace' && (
           <div id="tab-palace" className="w-full max-w-3xl bg-gray-900 border border-gray-700 rounded-xl shadow-md p-6 mx-auto mb-6">
             <form onSubmit={handleMarcUrlSubmit} className="flex flex-col gap-3">
-              <label htmlFor="marc-url" className="text-blue-200 font-semibold">Select Records from Palace CM</label>
+              <label htmlFor="marc-url" className="text-primary font-semibold">Select Records from Palace CM</label>
               <div className="flex gap-2">
                 <input
                   id="marc-url"
@@ -338,13 +412,26 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
                   disabled={marcLoading}
                   required
                 />
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow"
-                  disabled={marcLoading}
-                >
-                  {marcLoading ? 'Loading...' : 'Scrape'}
-                </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow"
+                      disabled={marcLoading}
+                    >
+                      {marcLoading ? 'Loading...' : 'Get'}
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium border border-gray-600"
+                      onClick={() => {
+                        // prompt user to confirm clearing fetched/selected data
+                        setShowClearConfirm(true);
+                      }}
+                      disabled={marcLoading}
+                    >
+                      Clear
+                    </button>
+                  </div>
               </div>
               {marcError && <div className="text-red-400 text-sm">{marcError}</div>}
             </form>
@@ -365,7 +452,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
                             <button
                               type="button"
                               className={`text-blue-400 underline hover:text-blue-200 focus:outline-none ${marcFileLoading === link.href ? 'opacity-60 pointer-events-none' : ''}`}
-                              onClick={() => handleMarcFileSelect(link.href)}
+                              onClick={() => handleMarcFileSelect(link.href, link.text)}
                               disabled={!!marcFileLoading}
                             >
                               {marcFileLoading === link.href ? 'Loading…' : (link.text || link.href)}
@@ -404,6 +491,20 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading }) => {
           </div>
         )}
       </div>
+      {/* Clear confirmation modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowClearConfirm(false)} />
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 z-10 w-full max-w-md">
+            <h4 className="text-lg font-semibold mb-2 text-white">Clear fetched/uploaded data?</h4>
+            <p className="text-sm text-gray-300 mb-4">This will abort any in-progress requests or uploads and clear the retrieved links or selected files. This cannot be undone.</p>
+            <div className="flex justify-end gap-2">
+              <button className="px-4 py-2 rounded bg-gray-700 text-gray-200" onClick={() => setShowClearConfirm(false)}>Cancel</button>
+              <button className="px-4 py-2 rounded bg-red-600 text-white" onClick={performClear}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

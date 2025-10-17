@@ -37,7 +37,12 @@ async function main() {
     }
 
     const form = new FormData();
-    const blob = new Blob([buffer], { type: 'application/octet-stream' });
+  // Print first 32 bytes of the file as hex for comparison with browser logs
+  const first32 = buffer.slice(0, 32);
+  const hexFirst32 = Array.from(first32).map(b => b.toString(16).padStart(2, '0')).join(' ');
+  console.log('Local sample.mrc first 32 bytes (hex):', hexFirst32);
+
+  const blob = new Blob([buffer], { type: 'application/octet-stream' });
     form.append('file', blob, 'sample.mrc');
 
     const headers = {};

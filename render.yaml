@@ -1,0 +1,8 @@
+services:
+  - type: web_service
+    name: marc-to-kbart
+    env: static
+    staticPublishPath: dist
+    buildCommand: npm install && npm run build
+    plan: free
+    branch: master

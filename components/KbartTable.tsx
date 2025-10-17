@@ -79,7 +79,7 @@ const KbartTable: React.FC<KbartTableProps> = ({ data, label, currentTab, ts }) 
       {currentTab && (
         <div className="mb-2 flex items-center gap-3">
           <div className="text-sm text-gray-400">Showing results from:</div>
-          <div className={`px-2.5 py-1 rounded-full text-xs font-semibold ${currentTab === 'palace' ? 'bg-indigo-700 text-indigo-100' : 'bg-emerald-700 text-emerald-100'}`}>{currentTab === 'palace' ? 'Palace CM' : 'Manual upload'}</div>
+          <div className={`px-2.5 py-1 rounded-full text-xs font-semibold ${currentTab === 'palace' ? 'bg-indigo-700 text-indigo-100' : 'bg-emerald-700 text-emerald-100'}`}>{currentTab === 'palace' ? 'Palace' : 'Manual upload'}</div>
           {ts && <div className="text-sm text-gray-400">as of <span className="font-mono text-gray-200">{new Date(ts).toLocaleString()}</span></div>}
         </div>
       )}

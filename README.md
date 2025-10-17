@@ -96,3 +96,22 @@ If the hex bytes match and the backend still fails, investigate server-side pars
 
 Note: Remove or disable verbose debug logging before shipping to production.
 
+
+## Smoke test
+
+There is a small smoke test script to verify the MARC upload/convert endpoint quickly from your development machine.
+
+Run the packaged script which uploads the included `sample.mrc` to your backend:
+
+```bash
+# basic (assumes local backend at http://localhost:5000)
+npm run smoke:upload
+
+# target a deployed backend and provide a token
+SMOKE_API_URL="https://marc-json.onrender.com/api/convert?format=json" VITE_API_TOKEN="<token>" npm run smoke:upload
+```
+
+Notes:
+- The script requires Node 18+ (global fetch/FormData/Blob available).
+- The script prints response status and body. It exits non-zero on HTTP errors so it can be used in CI.
+

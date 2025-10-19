@@ -117,19 +117,19 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 flex flex-col items-center p-4 sm:p-6 lg:p-8">
       <GlobalLoader isLoading={isLoading} />
-      <main className="w-full max-w-5xl mx-auto">
+  <main className="w-full max-w-7xl">
         <header className="text-center mb-8">
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-2">
             MARC to <span className="text-blue-400">KBART</span> Converter
           </h1>
-          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-2">
             Convert a MARC file into a KBART-formatted table by providing a URL or uploading the file directly.
           </p>
+          <hr className="border-gray-700 mb-4" />
+          <div className="w-full flex justify-center mb-2">
+            <button className="px-3 py-1 rounded bg-gray-800 border border-gray-700 text-gray-200" onClick={() => setShowSettings(true)}>Settings</button>
+          </div>
         </header>
-
-        <div className="w-full max-w-5xl mx-auto mb-4 flex justify-end">
-          <button className="px-3 py-1 rounded bg-gray-800 border border-gray-700 text-gray-200" onClick={() => setShowSettings(true)}>Settings</button>
-        </div>
 
         {apiAvailable === false && (
           <div className="mb-4 p-4 bg-red-900 text-red-200 rounded-lg border border-red-700 text-center">
@@ -138,35 +138,48 @@ const App: React.FC = () => {
         )}
 
         <ErrorBoundary>
-          <section className="w-full bg-gray-800/50 border border-gray-700 rounded-xl shadow-2xl p-6 sm:p-8">
-            <InputArea 
-              onUrlConvert={handleUrlConvert}
-              onFileConvert={(file: File, label?: string) => { setSelectedLabel(label); handleFileConvert(file); }}
-              onActiveTabChange={(newTab) => {
-                // Save current tab results into cache (with timestamp) and restore any cached results for the new tab
-                setTabCache(prev => {
-                  const ts = new Date().toISOString();
-                  const updated = {
-                    ...prev,
-                    [currentTab]: { data: kbartData, label: selectedLabel, status, ts }
-                  };
-                  const entry = updated[newTab] || { data: [], label: undefined, status: null, ts: undefined };
-                  setKbartData(entry.data);
-                  setSelectedLabel(entry.label);
-                  setStatus(entry.status ?? null);
-                  setCurrentTab(newTab);
-                  return updated;
-                });
-              }}
-              isLoading={isLoading}
-              disabled={apiAvailable === false}
-            />
-            {(isLoading || (status && apiAvailable !== false)) && <StatusDisplay status={status} />}
-          </section>
-
-      <section className="w-full">
-  <KbartTable data={kbartData} label={selectedLabel} currentTab={currentTab} ts={tabCache[currentTab]?.ts} />
-      </section>
+          <div className="w-full flex flex-col md:flex-row gap-8 items-start">
+            {/* Left column: InputArea */}
+            <section className="w-full md:w-1/2 bg-gray-800/50 shadow-2xl p-6 sm:p-8 mb-8 md:mb-0">
+              <InputArea 
+                onUrlConvert={handleUrlConvert}
+                onFileConvert={(file: File, label?: string) => { setSelectedLabel(label); handleFileConvert(file); }}
+                onActiveTabChange={(newTab) => {
+                  setTabCache(prev => {
+                    const ts = new Date().toISOString();
+                    const updated = {
+                      ...prev,
+                      [currentTab]: { data: kbartData, label: selectedLabel, status, ts }
+                    };
+                    const entry = updated[newTab] || { data: [], label: undefined, status: null, ts: undefined };
+                    setKbartData(entry.data);
+                    setSelectedLabel(entry.label);
+                    setStatus(entry.status ?? null);
+                    setCurrentTab(newTab);
+                    return updated;
+                  });
+                }}
+                isLoading={isLoading}
+                disabled={apiAvailable === false}
+              />
+              {(isLoading || (status && apiAvailable !== false)) && <StatusDisplay status={status} />}
+            </section>
+            {/* Right column: Results */}
+            <section className="w-full md:w-1/2">
+              {/* Results info above results card */}
+              {kbartData.length > 0 && (
+                <div className="mb-2 flex flex-col gap-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-400">Showing results from:</span>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${currentTab === 'palace' ? 'bg-indigo-700 text-indigo-100' : 'bg-emerald-700 text-emerald-100'}`}>{currentTab === 'palace' ? 'Palace' : 'Manual upload'}</span>
+                    {tabCache[currentTab]?.ts && <span className="text-sm text-gray-400">as of <span className="font-mono text-gray-200">{new Date(tabCache[currentTab]?.ts ?? '').toLocaleString()}</span></span>}
+                  </div>
+                  <div className="text-xl font-bold text-gray-100 mt-1">Conversion Results{selectedLabel ? ` — ${selectedLabel}` : ''}</div>
+                </div>
+              )}
+              <KbartTable data={kbartData} label={selectedLabel} currentTab={currentTab} ts={tabCache[currentTab]?.ts} />
+            </section>
+          </div>
         </ErrorBoundary>
         {/* Settings modal */}
         {showSettings && (

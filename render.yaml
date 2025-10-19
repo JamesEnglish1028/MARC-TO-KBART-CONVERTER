@@ -5,4 +5,4 @@ services:
     staticPublishPath: dist
     buildCommand: npm install && npm run build
     plan: free
-    branch: master
+  branch: main

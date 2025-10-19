@@ -389,7 +389,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading, onActiv
           >
             <span className="flex items-center justify-center gap-3">
               <UploadIcon className="w-7 h-7 text-current" aria-hidden="true" title="Upload" />
-              <span className="ml-1">Manual or URL uploads</span>
+              <span className="ml-1">Other</span>
             </span>
           </button>
         </nav>
@@ -401,57 +401,56 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading, onActiv
           <div id="tab-palace" className="w-full max-w-3xl bg-gray-900 border border-gray-700 rounded-xl shadow-md p-6 mx-auto mb-6">
             <form onSubmit={handleMarcUrlSubmit} className="flex flex-col gap-3">
               <label htmlFor="marc-url" className="text-primary font-semibold">Select Records from Palace CM</label>
-              <div className="flex gap-2">
-                <input
-                  id="marc-url"
-                  type="url"
-                  className="flex-1 rounded-lg border border-blue-400 bg-gray-800 text-blue-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter URL to MARC record page..."
-                  value={marcUrl}
-                  onChange={e => setMarcUrl(e.target.value)}
+              <p className="text-xs text-gray-400 mb-1">Enter the CM MARC endpoint URL</p>
+              <input
+                id="marc-url"
+                type="url"
+                className="w-full rounded-lg border border-blue-400 bg-gray-800 text-blue-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter URL to MARC record page..."
+                value={marcUrl}
+                onChange={e => setMarcUrl(e.target.value)}
+                disabled={marcLoading}
+                required
+              />
+              <div className="flex flex-row gap-2 w-full">
+                <button
+                  type="submit"
+                  className="w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow"
                   disabled={marcLoading}
-                  required
-                />
-                  <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow"
-                      disabled={marcLoading}
-                    >
-                      {marcLoading ? 'Loading...' : 'Get'}
-                    </button>
-                    <button
-                      type="button"
-                      className="px-3 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium border border-gray-600"
-                      onClick={() => {
-                        // prompt user to confirm clearing fetched/selected data
-                        setShowClearConfirm(true);
-                      }}
-                      disabled={marcLoading}
-                    >
-                      Clear
-                    </button>
-                  </div>
+                >
+                  {marcLoading ? 'Loading...' : 'Get'}
+                </button>
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium border border-gray-600"
+                  onClick={() => {
+                    // prompt user to confirm clearing fetched/selected data
+                    setShowClearConfirm(true);
+                  }}
+                  disabled={marcLoading}
+                >
+                  Clear
+                </button>
               </div>
               {marcError && <div className="text-red-400 text-sm">{marcError}</div>}
             </form>
             {/* Results list */}
             {marcLinks.length > 0 && (
-              <div className="mt-4">
-                <div className="text-blue-200 font-medium mb-2">Found MARC File Links:</div>
-                <ul className="space-y-4">
+              <div className="mt-4 text-left">
+                <div className="text-blue-200 font-medium mb-2 text-sm">Found MARC File Links:</div>
+                <ul className="space-y-3 text-sm">
                   {marcLinks.map((group, i) => (
                     <li key={i}>
                       {/* Render only the h3 (second heading in array) */}
                       {group.headings && group.headings[1] && (
-                        <div className="font-semibold text-white mb-1 ml-2">{group.headings[1]}</div>
+                        <div className="font-semibold text-white mb-1 ml-2 text-xs">{group.headings[1]}</div>
                       )}
-                      <ul className="ml-4 list-disc">
+                      <ul className="pl-4 list-disc text-left">
                         {group.links.map((link, j) => (
                           <li key={j}>
                             <button
                               type="button"
-                              className={`text-blue-400 underline hover:text-blue-200 focus:outline-none ${marcFileLoading === link.href ? 'opacity-60 pointer-events-none' : ''}`}
+                              className={`block w-full text-left text-blue-400 underline hover:text-blue-200 focus:outline-none text-xs whitespace-normal break-words ${marcFileLoading === link.href ? 'opacity-60 pointer-events-none' : ''}`}
                               onClick={() => handleMarcFileSelect(link.href, link.text)}
                               disabled={!!marcFileLoading}
                             >
@@ -463,21 +462,41 @@ const InputArea: React.FC<InputAreaProps> = ({ onFileConvert, isLoading, onActiv
                     </li>
                   ))}
                 </ul>
-                {marcFileError && <div className="text-red-400 text-sm mt-2">{marcFileError}</div>}
+                {marcFileError && <div className="text-red-400 text-xs mt-2">{marcFileError}</div>}
               </div>
             )}
           </div>
         )}
         {/* Manual/URL uploads tab */}
         {activeTab === 'manual' && (
-          <div id="tab-manual" className="w-full max-w-xl bg-gray-800 border border-gray-600 rounded-xl shadow-lg p-6 mx-auto">
+          <div id="tab-manual" className="w-full max-w-xl bg-gray-800 border border-gray-600 rounded-xl shadow-lg p-6 mx-auto relative">
+            {/* Custom style overrides for Uppy Dashboard */}
+            <style>{`
+              /* Prevent Uppy Dashboard from overlapping parent border */
+              .uppy-dashboard-custom .uppy-Dashboard-inner {
+                margin: 0 !important;
+                padding: 0 !important;
+                border-radius: 0.75rem !important;
+                box-shadow: none !important;
+              }
+              /* Hide the Add Files Title ("Drop files here") */
+              .uppy-dashboard-custom .uppy-Dashboard-AddFiles-title {
+                display: none !important;
+              }
+              /* Reduce font size and weight for 'browse files' and 'import from' */
+              .uppy-dashboard-custom .uppy-Dashboard-AddFiles-list .uppy-Dashboard-AddFiles-button,
+              .uppy-dashboard-custom .uppy-Dashboard-AddFiles-list .uppy-Dashboard-AddFiles-info {
+                font-size: 0.85rem !important;
+                font-weight: 400 !important;
+              }
+            `}</style>
             {uppy && (
               <Dashboard
                 uppy={uppy}
                 plugins={['Url']}
                 hideUploadButton={true}
                 proudlyDisplayPoweredByUppy={false}
-                note="Upload or paste a URL to a MARC 21 (.mrc, .marc) or MARC XML (.xml) file."
+                note="Select"
                 height={340}
                 width="100%"
                 disabled={isLoading}
